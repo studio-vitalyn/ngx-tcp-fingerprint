@@ -1,12 +1,41 @@
-ngx_addon_name=ngx_http_tcp_fingerprint_module
+ngx_addon_name=ngx_tcp_fingerprint_module
+
+TCP_FINGERPRINT_SRCS="$ngx_addon_dir/ngx_tcp_fingerprint.c"
+TCP_FINGERPRINT_DEPS="$ngx_addon_dir/ngx_tcp_fingerprint.h"
 
 if test -n "$ngx_module_link"; then
-    ngx_module_type=HTTP
-    ngx_module_name=ngx_http_tcp_fingerprint_module
-    ngx_module_srcs="$ngx_addon_dir/ngx_http_tcp_fingerprint_module.c"
+    if [ "$HTTP" = YES ]; then
+        ngx_module_type=HTTP
+        ngx_module_name=ngx_http_tcp_fingerprint_module
+        ngx_module_deps="$TCP_FINGERPRINT_DEPS"
+        ngx_module_srcs="$ngx_addon_dir/ngx_http_tcp_fingerprint_module.c
+                         $TCP_FINGERPRINT_SRCS"
 
-    . auto/module
+        . auto/module
+    fi
+
+    if [ "$STREAM" != NO ]; then
+        ngx_module_type=STREAM
+        ngx_module_name=ngx_stream_tcp_fingerprint_module
+        ngx_module_deps="$TCP_FINGERPRINT_DEPS"
+        ngx_module_srcs="$ngx_addon_dir/ngx_stream_tcp_fingerprint_module.c
+                         $TCP_FINGERPRINT_SRCS"
+
+        . auto/module
+    fi
 else
-    HTTP_MODULES="$HTTP_MODULES ngx_http_tcp_fingerprint_module"
-    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_tcp_fingerprint_module.c"
+    NGX_ADDON_DEPS="$NGX_ADDON_DEPS $TCP_FINGERPRINT_DEPS"
+    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $TCP_FINGERPRINT_SRCS"
+
+    if [ "$HTTP" = YES ]; then
+        HTTP_MODULES="$HTTP_MODULES ngx_http_tcp_fingerprint_module"
+        NGX_ADDON_SRCS="$NGX_ADDON_SRCS
+                       $ngx_addon_dir/ngx_http_tcp_fingerprint_module.c"
+    fi
+
+    if [ "$STREAM" = YES ]; then
+        STREAM_MODULES="$STREAM_MODULES ngx_stream_tcp_fingerprint_module"
+        NGX_ADDON_SRCS="$NGX_ADDON_SRCS
+                       $ngx_addon_dir/ngx_stream_tcp_fingerprint_module.c"
+    fi
 fi

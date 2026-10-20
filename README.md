@@ -104,10 +104,11 @@ mile do (mobile networks' transparent TCP proxies, iCloud Private Relay).
 ```
 Syntax:  tcp_fingerprint on | off;
 Default: tcp_fingerprint off;
-Context: http
+Context: http, stream
 ```
 
-Turns on `TCP_SAVE_SYN` on every TCP socket the `http` block listens on.
+Turns on `TCP_SAVE_SYN` on every TCP socket the containing `http` or `stream`
+block listens on.
 Loading the module without `tcp_fingerprint on` changes nothing: `off` leaves
 the sockets alone, so it never undoes another module that reads the SYN. A
 listening socket kept across a reload from `on` to `off` goes on saving SYNs
@@ -117,6 +118,7 @@ listening socket kept across a reload from `on` to `off` goes on saving SYNs
 
 ```nginx
 load_module modules/ngx_http_tcp_fingerprint_module.so;
+load_module modules/ngx_stream_tcp_fingerprint_module.so;
 
 http {
     tcp_fingerprint on;
@@ -136,7 +138,24 @@ http {
         }
     }
 }
+stream {
+    tcp_fingerprint on;
+    log_format fp '$remote_addr sig=$tcpfp_signature '
+                  'tls_rtt=$tcpfp_tls_rtt tcp_rtt=$tcpfp_tcp_rtt';
+    access_log /var/log/nginx/stream-fp.log fp;
+
+    server {
+        listen 8443 ssl;
+        ssl_certificate server.crt;
+        ssl_certificate_key server.key;
+        proxy_pass backend:9000;
+    }
+}
 ```
+
+The SYN variables also work on plain TCP listeners. RTT measurements require
+local TLS 1.3 termination; TLS passthrough with `ssl_preread` has no RTT sample.
+UDP and Unix-domain listeners return empty variables.
 
 ## njs examples
 
@@ -196,6 +215,12 @@ cd nginx-1.x.y
 make modules
 cp objs/ngx_http_tcp_fingerprint_module.so /usr/lib/nginx/modules/
 ```
+
+Add `--with-stream --with-stream_ssl_module` to build
+`ngx_stream_tcp_fingerprint_module.so` as well. Each module can be loaded
+independently. With `--with-stream=dynamic`, load `ngx_stream_module.so`
+first. `--without-http --with-stream` builds only the Stream module;
+`--add-module` supports static builds.
 
 ## Tests
 
